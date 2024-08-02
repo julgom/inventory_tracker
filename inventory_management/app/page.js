@@ -80,21 +80,6 @@ const NumberInput = React.forwardRef(function CustomNumberInput(props, ref) {
   );
 });
 
-const StyledBox = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  gap: theme.spacing(2),
-  marginTop: theme.spacing(2),
-  width: '100%',
-}));
-
-const StyledPaper = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(2),
-  textAlign: 'center',
-  color: theme.palette.text.primary,
-  backgroundColor: theme.palette.background.paper,
-}));
 
 
 export default function Home() {
@@ -434,12 +419,6 @@ export default function Home() {
             
           >
           Upload Image
-          <input
-            type="file"
-            accept="image/*"
-            hidden
-            
-          />
           </Button>
           </ThemeProvider>
           <Box display="flex" justifyContent="flex-end" gap={2}>
@@ -528,7 +507,6 @@ export default function Home() {
           <Table stickyHeader sx={{ minWidth: 700 }} aria-label="customized table">
             <TableHead>
               <TableRow>
-                <StyledTableCell align="center">Image</StyledTableCell>
                 <StyledTableCell align="center">Item Name</StyledTableCell>
                 <StyledTableCell align="center">Quantity</StyledTableCell>
                 <StyledTableCell align="right"></StyledTableCell>
@@ -536,12 +514,9 @@ export default function Home() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredInventory.map(({ name, quantity, imageURL }) => (
+              {filteredInventory.map(({ name, quantity }) => (
                 <StyledTableRow key={name}>
-                  <StyledTableCell align="center">
-                    {imageURL ? <img src={imageURL} alt={name} style={{ width: 50, height: 50 }} /> : 'No Image'}
-      
-                  </StyledTableCell>
+                  
                   <StyledTableCell align="center" component="th" scope="row">
                     {name.charAt(0).toUpperCase() + name.slice(1)}
                   </StyledTableCell>
