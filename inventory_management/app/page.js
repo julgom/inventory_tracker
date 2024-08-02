@@ -10,7 +10,7 @@ export default function Home() {
 import Image from "next/image";
 import { useState, useEffect } from 'react';
 import { firestore } from '@/firebase';
-import { Box, Typography, Modal, Stack, TextField, Button, IconButton, Paper, InputBase, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import { Box, Typography, Modal, Stack, TextField, Button, IconButton, Paper, InputBase, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,  CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions,  List, ListItem, ListItemText, Card, CardContent, CardHeader, Container } from '@mui/material';
 import { tableCellClasses } from '@mui/material/TableCell';
 import { collection, doc, getDocs, query, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import * as React from 'react';
@@ -19,10 +19,12 @@ import { styled, createTheme, ThemeProvider } from '@mui/material/styles';
 import RemoveIcon from '@mui/icons-material/Remove';
 import AddIcon from '@mui/icons-material/Add';
 import AddCircleRoundedIcon from '@mui/icons-material/AddCircleRounded';
-import CloseIcon from '@mui/icons-material/Close'; 
 import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
+import axios from 'axios';
+
+
 
 const theme = createTheme({
   palette: {
@@ -32,7 +34,6 @@ const theme = createTheme({
     },
   },
 });
-
 
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
@@ -79,6 +80,23 @@ const NumberInput = React.forwardRef(function CustomNumberInput(props, ref) {
   );
 });
 
+const StyledBox = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: theme.spacing(2),
+  marginTop: theme.spacing(2),
+  width: '100%',
+}));
+
+const StyledPaper = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(2),
+  textAlign: 'center',
+  color: theme.palette.text.primary,
+  backgroundColor: theme.palette.background.paper,
+}));
+
+
 export default function Home() {
   const [inventory, setInventory] = useState([]);
   const [open, setOpen] = useState(false);
@@ -87,6 +105,12 @@ export default function Home() {
   const [editOpen, setEditOpen] = useState(false);
   const [editingItem, setEditingItem] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const[prompt, setPrompt] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [recipes, setRecipes] = useState([]);
+
+  const [recipeOpen, setRecipeOpen] = useState(false);
 
   const updateInventory = async () => {
     const snapshot = query(collection(firestore, 'inventory'));
@@ -102,7 +126,42 @@ export default function Home() {
     console.log(inventoryList);
   };
 
+  // Function to generate recipes
+  const generateRecipes = async () => {
+    try {
+      setIsLoading(true);
+      // Make a POST request to your backend server
+      const response = await axios.post('http://127.0.0.1:5000/generate-recipes', {
+        ingredients: inventory.map(item => item.name),
+      });
+      
+      // Set the received recipes to state
+      const jsonArray = response.data.recipe;
+
+      // Wrap the data in an array if it's not already an array
+      const jsArray = JSON.parse(jsonArray);
+
+      setRecipes(jsArray);
+      //setRecipes(response.data.recipe);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error generating recipes:', error);
+    }
+  };
+
+  console.log(Array.isArray(recipes));
+  console.log(recipes);
+
+  const handleGenerateRecipes = () => {
+    setRecipeOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setRecipeOpen(false);
+  };
+
   const addItem = async (item, addQuantity) => {
+    
     const docRef = doc(collection(firestore, 'inventory'), item);
     const docSnap = await getDoc(docRef);
 
@@ -141,6 +200,7 @@ export default function Home() {
   };
 
   const editItem = async () => {
+    
     const docRef = doc(collection(firestore, 'inventory'), editingItem);
     const docSnap = await getDoc(docRef);
   
@@ -154,7 +214,7 @@ export default function Home() {
         await deleteDoc(docRef);
       } else {
         // Update the quantity if the name hasn't changed
-        await setDoc(docRef, { quantity: itemQuantity });
+        await setDoc(docRef, { quantity: itemQuantity});
       }
     }
   
@@ -166,15 +226,18 @@ export default function Home() {
 
   useEffect(() => {
     updateInventory();
+
   }, []);
 
+  
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
-  const handleEditOpen = (name, quantity) => {
+  const handleEditOpen = (name, quantity, ) => {
     setItemName(name);
     setItemQuantity(quantity);
     setEditingItem(name);
+    
     setEditOpen(true);
   };
   
@@ -247,7 +310,27 @@ export default function Home() {
               }
               
             }}
+            
           />
+          <Button
+            sx={{
+              textTransform: 'none', // Disable default uppercase transformation
+              '&::first-letter': {
+                textTransform: 'capitalize', // Capitalize the first letter
+              },
+            }}
+            color="black"
+            variant="contained"
+            
+          >
+          Upload Image
+          <input
+            type="file"
+            accept="image/*"
+            hidden
+            
+          />
+          </Button>
           </ThemeProvider>
           <Box display="flex" justifyContent="flex-end" gap={2}>
           <ThemeProvider theme={theme}>
@@ -260,10 +343,13 @@ export default function Home() {
               }}
               color="black"
               variant="contained"
-              onClick={() => {
+              onClick={async () => {
+                
                 addItem(itemName, itemQuantity);
                 setItemName('');
                 setItemQuantity(1);
+                
+
                 handleClose();
               }}
             >
@@ -281,6 +367,8 @@ export default function Home() {
               onClick={() => {
                 setItemName('');
                 setItemQuantity(1);
+               
+
                 handleClose();
               }}
             >
@@ -334,6 +422,25 @@ export default function Home() {
               }
             }}
           />
+           <Button
+            sx={{
+              textTransform: 'none', // Disable default uppercase transformation
+              '&::first-letter': {
+                textTransform: 'capitalize', // Capitalize the first letter
+              },
+            }}
+            color="black"
+            variant="contained"
+            
+          >
+          Upload Image
+          <input
+            type="file"
+            accept="image/*"
+            hidden
+            
+          />
+          </Button>
           </ThemeProvider>
           <Box display="flex" justifyContent="flex-end" gap={2}>
           <ThemeProvider theme={theme}>
@@ -346,10 +453,13 @@ export default function Home() {
               }}
               color="black"
               variant="contained"
-              onClick={() => {
+              onClick={ () => {
+               
                 editItem();
                 setItemName('');
                 setItemQuantity(1);
+               
+
                 handleEditClose();
               }}
             >
@@ -368,6 +478,8 @@ export default function Home() {
               onClick={() => {
                 setItemName('');
                 setItemQuantity(1);
+                
+
                 handleEditClose();
                 
               }}
@@ -410,12 +522,13 @@ export default function Home() {
           
         </Box>
 
-      <Box width="800px">
+      <Box width="800px" >
       
-        <TableContainer component={Paper}>
-          <Table sx={{ minWidth: 700 }} aria-label="customized table">
+        <TableContainer component={Paper} sx={{ maxHeight: 500, overflow: 'auto' }} >
+          <Table stickyHeader sx={{ minWidth: 700 }} aria-label="customized table">
             <TableHead>
               <TableRow>
+                <StyledTableCell align="center">Image</StyledTableCell>
                 <StyledTableCell align="center">Item Name</StyledTableCell>
                 <StyledTableCell align="center">Quantity</StyledTableCell>
                 <StyledTableCell align="right"></StyledTableCell>
@@ -423,8 +536,12 @@ export default function Home() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredInventory.map(({ name, quantity }) => (
+              {filteredInventory.map(({ name, quantity, imageURL }) => (
                 <StyledTableRow key={name}>
+                  <StyledTableCell align="center">
+                    {imageURL ? <img src={imageURL} alt={name} style={{ width: 50, height: 50 }} /> : 'No Image'}
+      
+                  </StyledTableCell>
                   <StyledTableCell align="center" component="th" scope="row">
                     {name.charAt(0).toUpperCase() + name.slice(1)}
                   </StyledTableCell>
@@ -464,6 +581,63 @@ export default function Home() {
             </TableBody>
           </Table>
         </TableContainer>
+        <ThemeProvider theme={theme}>
+          <Box  
+            sx={{
+              marginY: 4,
+              display: 'flex',
+              justifyContent: 'center',
+            }}>
+            <Button
+              sx={{
+                textTransform: 'none', // Disable default uppercase transformation
+                '&::first-letter': {
+                  textTransform: 'capitalize', // Capitalize the first letter
+                },
+              }}
+              color="black"
+              variant="contained"
+              onClick={generateRecipes}
+             >
+            Generate Recipes
+            </Button>
+            
+
+            
+          </Box>
+          
+          <main style={{ padding: 16 }}>
+            {isLoading && <CircularProgress style={{ display: 'block', margin: 'auto' }} />}
+                {recipes.length > 0 && recipes.map((recipe, i) => (
+                    <Card>
+                        <h2 style={{ textAlign: 'center', width: '100%' }}>{recipe.name}</h2>
+                        <p style={{ textAlign: 'center', width: '100%' }}>{recipe.description}</p>
+                        <CardContent>
+                          <h3 style={{ textAlign: 'center', width: '100%' }}>Ingredients:</h3>
+                                <div style={{ backgroundColor: '#f5f5f5', border: '1px solid #ddd', borderRadius: 4, marginBottom: 16 }}>
+                                  <ul>
+                                    {recipe.ingredients.map((ingredient, i) => (
+                                     <li key={i}>{ingredient}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                                <h3 style={{ textAlign: 'center', width: '100%' }}>Instructions:</h3>
+                                <ol>
+                                 {recipe.instructions.map((instruction, i) => (
+                                  <li key={i}>{instruction}</li>
+                                 ))}
+                                </ol>
+                        </CardContent>
+                    </Card>
+                ))}
+          </main>
+            
+         
+         
+          
+          
+        
+        </ThemeProvider>
       </Box>
     </Box>
   );
@@ -494,7 +668,7 @@ const grey = {
 
 
 const StyledInputRoot = styled('div')(
-  ({ theme }) => `
+  ({ theme }) => ` 
   font-family: 'IBM Plex Sans', sans-serif;
   font-weight: 400;
   color: ${theme.palette.mode === 'dark' ? grey[300] : grey[500]};
@@ -576,4 +750,3 @@ const StyledButton = styled('button')(
   }
 `,
 );
-
