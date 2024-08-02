@@ -581,31 +581,32 @@ export default function Home() {
             
           </Box>
           
-          <main style={{ padding: 16 }}>
+          <main style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {isLoading && <CircularProgress style={{ display: 'block', margin: 'auto' }} />}
-                {recipes.length > 0 && recipes.map((recipe, i) => (
-                    <Card>
-                        <h2 style={{ textAlign: 'center', width: '100%' }}>{recipe.name}</h2>
-                        <p style={{ textAlign: 'center', width: '100%' }}>{recipe.description}</p>
-                        <CardContent>
-                          <h3 style={{ textAlign: 'center', width: '100%' }}>Ingredients:</h3>
-                                <div style={{ backgroundColor: '#f5f5f5', border: '1px solid #ddd', borderRadius: 4, marginBottom: 16 }}>
-                                  <ul>
-                                    {recipe.ingredients.map((ingredient, i) => (
-                                     <li key={i}>{ingredient}</li>
-                                    ))}
-                                  </ul>
-                                </div>
-                                <h3 style={{ textAlign: 'center', width: '100%' }}>Instructions:</h3>
-                                <ol>
-                                 {recipe.instructions.map((instruction, i) => (
-                                  <li key={i}>{instruction}</li>
-                                 ))}
-                                </ol>
-                        </CardContent>
-                    </Card>
-                ))}
-          </main>
+            {recipes.length > 0 && recipes.map((recipe) => (
+              <Card key={recipe.id} style={{ padding: '24px', marginBottom: '16px' }}>
+                <h2 style={{ textAlign: 'center', marginBottom: '16px' }}>{recipe.name}</h2>
+                <p style={{ textAlign: 'center', marginBottom: '24px' }}>{recipe.description}</p>
+                <CardContent>
+                  <h3 style={{ textAlign: 'center', marginBottom: '8px' }}>Ingredients:</h3>
+                  <div style={{ backgroundColor: '#f5f5f5', border: '1px solid #ddd', borderRadius: '4px', padding: '8px', marginBottom: '24px' }}>
+                    <ul style={{ paddingLeft: '20px' }}>
+                      {recipe.ingredients.map((ingredient, i) => (
+                        <li key={ingredient.id || i} style={{ marginBottom: '8px' }}>{ingredient}</li>
+                      ))}
+                     </ul>
+                  </div>
+                  <h3 style={{ textAlign: 'center', marginBottom: '8px' }}>Instructions:</h3>
+                  <ol style={{ paddingLeft: '20px' }}>
+                    {recipe.instructions.map((instruction, i) => (
+                      <li key={instruction.id || i} style={{ marginBottom: '8px' }}>{instruction}</li>
+                    ))}
+                  </ol>
+                </CardContent>
+              </Card>
+           ))}
+         </main>
+
             
          
          
