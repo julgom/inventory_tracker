@@ -10,7 +10,7 @@ export default function Home() {
 import Image from "next/image";
 import { useState, useEffect } from 'react';
 import { firestore } from '@/firebase';
-import { Box, Typography, Modal, Stack, TextField, Button, IconButton, Paper, InputBase, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,  CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions,  List, ListItem, ListItemText, Card, CardContent, CardHeader, Container } from '@mui/material';
+import { Box, Typography, Modal, Stack, TextField, Button, IconButton, Paper, InputBase, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,  CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions,  List, ListItem, ListItemText, Card, CardContent, Container, Grid } from '@mui/material';
 import { tableCellClasses } from '@mui/material/TableCell';
 import { collection, doc, getDocs, query, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import * as React from 'react';
@@ -91,7 +91,7 @@ export default function Home() {
   const [editingItem, setEditingItem] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const[prompt, setPrompt] = useState('');
+  
   const [isLoading, setIsLoading] = useState(false);
   const [recipes, setRecipes] = useState([]);
 
@@ -122,24 +122,22 @@ export default function Home() {
       
       // Set the received recipes to state
       const jsonArray = response.data.recipe;
-
+      
       // Wrap the data in an array if it's not already an array
       const jsArray = JSON.parse(jsonArray);
+    
 
       setRecipes(jsArray);
       //setRecipes(response.data.recipe);
       setIsLoading(false);
+      setRecipeOpen(true);
+      
     } catch (error) {
       console.error('Error generating recipes:', error);
     }
   };
 
-  console.log(Array.isArray(recipes));
   console.log(recipes);
-
-  const handleGenerateRecipes = () => {
-    setRecipeOpen(true);
-  };
 
   const handleCloseModal = () => {
     setRecipeOpen(false);
@@ -243,11 +241,11 @@ export default function Home() {
       gap={2}
       sx={{
         position: 'absolute',
-        top: '10%',  // Adjust this value to control the vertical offset
+        top: '3%', // Adjust this value to control the vertical offset
         left: 0,
         right: 0,
         bottom: 0,
-        marginTop: '10px', // Add margin if you prefer this method
+        marginTop: '8px', // Add margin if you prefer this method
       }}
     >
     
@@ -503,19 +501,19 @@ export default function Home() {
 
       <Box width="800px" >
       
-        <TableContainer component={Paper} sx={{ maxHeight: 500, overflow: 'auto' }} >
-          <Table stickyHeader sx={{ minWidth: 700 }} aria-label="customized table">
+      <TableContainer component={Paper} sx={{ maxHeight: 500, overflow: 'auto' }} >
+          <Table stickyHeader sx={{ minWidth: 700, tableLayout: 'fixed'}} aria-label="customized table">
             <TableHead>
-              <TableRow>
+              <TableRow >
                 <StyledTableCell align="center">Item Name</StyledTableCell>
                 <StyledTableCell align="center">Quantity</StyledTableCell>
                 <StyledTableCell align="right"></StyledTableCell>
                
               </TableRow>
             </TableHead>
-            <TableBody>
+            <TableBody >
               {filteredInventory.map(({ name, quantity }) => (
-                <StyledTableRow key={name}>
+                <StyledTableRow key={name} >
                   
                   <StyledTableCell align="center" component="th" scope="row">
                     {name.charAt(0).toUpperCase() + name.slice(1)}
@@ -576,43 +574,72 @@ export default function Home() {
              >
             Generate Recipes
             </Button>
-            
-
-            
           </Box>
-          
-          <main style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {isLoading && <CircularProgress style={{ display: 'block', margin: 'auto' }} />}
-            {recipes.length > 0 && recipes.map((recipe) => (
-              <Card key={recipe.id} style={{ padding: '24px', marginBottom: '16px' }}>
+          <main style={{ padding: '16px' }}>
+  {isLoading && (
+    <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      <CircularProgress style={{ color: 'black' }} />
+    </div>
+  )}
+
+  {!isLoading && recipes.length > 0 && (
+    <Dialog open={recipeOpen} onClose={handleCloseModal} fullWidth maxWidth="md">
+      <DialogContent style={{ paddingTop: '32px' }}>
+        <Grid container spacing={4}>
+          {recipes.map((recipe, i) => (
+            <Grid item xs={12} md={4} key={i}>
+              <Card key={recipe.id} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                 <h2 style={{ textAlign: 'center', marginBottom: '16px' }}>{recipe.name}</h2>
                 <p style={{ textAlign: 'center', marginBottom: '24px' }}>{recipe.description}</p>
-                <CardContent>
+                <CardContent style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
                   <h3 style={{ textAlign: 'center', marginBottom: '8px' }}>Ingredients:</h3>
                   <div style={{ backgroundColor: '#f5f5f5', border: '1px solid #ddd', borderRadius: '4px', padding: '8px', marginBottom: '24px' }}>
                     <ul style={{ paddingLeft: '20px' }}>
-                      {recipe.ingredients.map((ingredient, i) => (
-                        <li key={ingredient.id || i} style={{ marginBottom: '8px' }}>{ingredient}</li>
+                      {recipe.ingredients.map((ingredient, j) => (
+                        <li key={ingredient.id || j} style={{ marginBottom: '8px' }}>{ingredient}</li>
                       ))}
-                     </ul>
+                    </ul>
                   </div>
                   <h3 style={{ textAlign: 'center', marginBottom: '8px' }}>Instructions:</h3>
                   <ol style={{ paddingLeft: '20px' }}>
-                    {recipe.instructions.map((instruction, i) => (
-                      <li key={instruction.id || i} style={{ marginBottom: '8px' }}>{instruction}</li>
+                    {recipe.instructions.map((instruction, k) => (
+                      <li key={instruction.id || k} style={{ marginBottom: '8px' }}>{instruction}</li>
                     ))}
                   </ol>
                 </CardContent>
               </Card>
-           ))}
-         </main>
+            </Grid>
+          ))}
+        </Grid>
+      </DialogContent>
+      <DialogActions
+        sx={{
+          justifyContent: 'center',
+          marginBottom: '12px',
+          position: 'relative',
+        }}
+      >
+        <Button
+          sx={{
+            textTransform: 'none',
+            '&::first-letter': {
+              textTransform: 'capitalize',
+            },
+          }}
+          color="black"
+          variant="contained"
+          onClick={handleCloseModal}
+        >
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
+  )}
+</main>
 
-            
          
-         
-          
-          
         
+          
         </ThemeProvider>
       </Box>
     </Box>
