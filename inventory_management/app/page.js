@@ -1,10 +1,3 @@
-/*import Image from "next/image";
-
-export default function Home() {
-  return <>Hello</>
-}
-
-*/
 
 'use client'
 import Image from "next/image";
@@ -50,7 +43,6 @@ const StyledTableRow = styled(TableRow)(({ theme }) => ({
   '&:nth-of-type(odd)': {
     backgroundColor: theme.palette.action.hover,
   },
-  // hide last border
   '&:last-child td, &:last-child th': {
     border: 0,
   },
@@ -94,7 +86,6 @@ export default function Home() {
   
   const [isLoading, setIsLoading] = useState(false);
   const [recipes, setRecipes] = useState([]);
-
   const [recipeOpen, setRecipeOpen] = useState(false);
 
   const updateInventory = async () => {
