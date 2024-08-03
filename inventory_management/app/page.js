@@ -116,9 +116,16 @@ export default function Home() {
     try {
       setIsLoading(true);
       // Make a POST request to your backend server
+      //const response = await axios.post('http://127.0.0.1:5000/generate-recipes', {
+        //ingredients: inventory.map(item => item.name),
+      //});
       const response = await axios.post('http://127.0.0.1:5000/generate-recipes', {
-        ingredients: inventory.map(item => item.name),
-      });
+        ingredients: inventory.map(item => ({
+          name: item.name,
+          quantity: item.quantity
+      })),
+    });
+
       
       // Set the received recipes to state
       const jsonArray = response.data.recipe;
