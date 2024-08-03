@@ -88,6 +88,9 @@ export default function Home() {
   const [recipes, setRecipes] = useState([]);
   const [recipeOpen, setRecipeOpen] = useState(false);
 
+  const [errorOpen, setErrorOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
   const updateInventory = async () => {
     const snapshot = query(collection(firestore, 'inventory'));
     const docs = await getDocs(snapshot);
@@ -102,21 +105,46 @@ export default function Home() {
     console.log(inventoryList);
   };
 
+
   // Function to generate recipes
   const generateRecipes = async () => {
+    
+      
+      try {
+        setIsLoading(true);
+        setErrorMessage(null);
+        // Make a POST request to your backend server
+        const response = await axios.post('http://127.0.0.1:5000/generate-recipes', {
+          ingredients: inventory.map(item => item.name),
+        });
+        
+        // Set the received recipes to state
+        const jsonArray = response.data.recipe;
+        
+        // Wrap the data in an array if it's not already an array
+        const jsArray = JSON.parse(jsonArray);
+      
+  
+        setRecipes(jsArray);
+        setIsLoading(false);
+        setRecipeOpen(true);
+        
+      } catch (error) {
+        setIsLoading(false);
+        setErrorMessage('There was an error generating recipes. Please try again.');
+        setErrorOpen(true);
+      }
+  };
+
+  const handleRetry = async () => {
+    setErrorOpen(false);
     try {
       setIsLoading(true);
+      setErrorMessage(null);
       // Make a POST request to your backend server
-      //const response = await axios.post('http://127.0.0.1:5000/generate-recipes', {
-        //ingredients: inventory.map(item => item.name),
-      //});
       const response = await axios.post('http://127.0.0.1:5000/generate-recipes', {
-        ingredients: inventory.map(item => ({
-          name: item.name,
-          quantity: item.quantity
-      })),
-    });
-
+        ingredients: inventory.map(item => item.name),
+      });
       
       // Set the received recipes to state
       const jsonArray = response.data.recipe;
@@ -126,20 +154,25 @@ export default function Home() {
     
 
       setRecipes(jsArray);
-      //setRecipes(response.data.recipe);
       setIsLoading(false);
       setRecipeOpen(true);
       
     } catch (error) {
-      console.error('Error generating recipes:', error);
+      setIsLoading(false);
+      setErrorMessage('There was an error generating recipes. Please try again.');
+      setErrorOpen(true);
     }
   };
-
   console.log(recipes);
 
   const handleCloseModal = () => {
     setRecipeOpen(false);
   };
+
+  const handleCloseErrorModal = () => {
+    setErrorOpen(false);
+  };
+
 
   const addItem = async (item, addQuantity) => {
     
@@ -532,10 +565,6 @@ export default function Home() {
                         removeItem(name, quantity - value);
                       }
                     }}
-                    
-           
-              
-           
                   />
                   </StyledTableCell>
                   <StyledTableCell align="center">
@@ -574,70 +603,104 @@ export default function Home() {
             </Button>
           </Box>
           <main style={{ padding: '16px' }}>
-  {isLoading && (
-    <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-      <CircularProgress style={{ color: 'black' }} />
-    </div>
-  )}
+            {isLoading && (
+              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <CircularProgress style={{ color: 'black' }} />
+              </div>
+            )}
 
-  {!isLoading && recipes.length > 0 && (
-    <Dialog open={recipeOpen} onClose={handleCloseModal} fullWidth maxWidth="md">
-      <DialogContent style={{ paddingTop: '32px' }}>
-        <Grid container spacing={4}>
-          {recipes.map((recipe, i) => (
-            <Grid item xs={12} md={4} key={i}>
-              <Card key={recipe.id} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                <h2 style={{ textAlign: 'center', marginBottom: '16px' }}>{recipe.name}</h2>
-                <p style={{ textAlign: 'center', marginBottom: '24px' }}>{recipe.description}</p>
-                <CardContent style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-                  <h3 style={{ textAlign: 'center', marginBottom: '8px' }}>Ingredients:</h3>
-                  <div style={{ backgroundColor: '#f5f5f5', border: '1px solid #ddd', borderRadius: '4px', padding: '8px', marginBottom: '24px' }}>
-                    <ul style={{ paddingLeft: '20px' }}>
-                      {recipe.ingredients.map((ingredient, j) => (
-                        <li key={ingredient.id || j} style={{ marginBottom: '8px' }}>{ingredient}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <h3 style={{ textAlign: 'center', marginBottom: '8px' }}>Instructions:</h3>
-                  <ol style={{ paddingLeft: '20px' }}>
-                    {recipe.instructions.map((instruction, k) => (
-                      <li key={instruction.id || k} style={{ marginBottom: '8px' }}>{instruction}</li>
+            {!isLoading && recipes.length > 0 && (
+              <Dialog open={recipeOpen} onClose={handleCloseModal} fullWidth maxWidth="md">
+                <DialogContent style={{ paddingTop: '32px' }}>
+                  <Grid container spacing={4}>
+                    {recipes.map((recipe, i) => (
+                      <Grid item xs={12} md={4} key={i}>
+                        <Card key={recipe.id} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                          <h2 style={{ textAlign: 'center', marginBottom: '16px' }}>{recipe.name}</h2>
+                          <p style={{ textAlign: 'center', marginBottom: '24px' }}>{recipe.description}</p>
+                          <CardContent style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+                            <h3 style={{ textAlign: 'center', marginBottom: '8px' }}>Ingredients:</h3>
+                            <div style={{ backgroundColor: '#f5f5f5', border: '1px solid #ddd', borderRadius: '4px', padding: '8px', marginBottom: '24px' }}>
+                              <ul style={{ paddingLeft: '20px' }}>
+                                {recipe.ingredients.map((ingredient, j) => (
+                                  <li key={ingredient.id || j} style={{ marginBottom: '8px' }}>{ingredient}</li>
+                                ))}
+                              </ul>
+                            </div>
+                            <h3 style={{ textAlign: 'center', marginBottom: '8px' }}>Instructions:</h3>
+                            <ol style={{ paddingLeft: '20px' }}>
+                              {recipe.instructions.map((instruction, k) => (
+                                <li key={instruction.id || k} style={{ marginBottom: '8px' }}>{instruction}</li>
+                              ))}
+                            </ol>
+                          </CardContent>
+                        </Card>
+                      </Grid>
                     ))}
-                  </ol>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      </DialogContent>
-      <DialogActions
-        sx={{
-          justifyContent: 'center',
-          marginBottom: '12px',
-          position: 'relative',
-        }}
-      >
-        <Button
-          sx={{
-            textTransform: 'none',
-            '&::first-letter': {
-              textTransform: 'capitalize',
-            },
-          }}
-          color="black"
-          variant="contained"
-          onClick={handleCloseModal}
-        >
-          Close
-        </Button>
-      </DialogActions>
-    </Dialog>
-  )}
-</main>
-
-         
-        
-          
+                  </Grid>
+                </DialogContent>
+                <DialogActions
+                  sx={{
+                    justifyContent: 'center',
+                    marginBottom: '12px',
+                    position: 'relative',
+                  }}
+                >
+                  <Button
+                    sx={{
+                      textTransform: 'none',
+                      '&::first-letter': {
+                        textTransform: 'capitalize',
+                      },
+                    }}
+                    color="black"
+                    variant="contained"
+                    onClick={handleCloseModal}
+                  >
+                  Close
+                  </Button>
+               </DialogActions>
+              </Dialog>
+            )}
+          </main>
+          <Dialog open={errorOpen} onClose={handleCloseErrorModal}>
+            <DialogContent style={{ paddingTop: '32px' }}>
+              <p style={{ textAlign: 'center', marginBottom: '24px' }}>{errorMessage}</p>
+            </DialogContent>
+            <DialogActions  
+              sx={{
+                justifyContent: 'center',
+                marginBottom: '12px',
+                position: 'relative',
+              }}>
+            <Button
+                    sx={{
+                      textTransform: 'none',
+                      '&::first-letter': {
+                        textTransform: 'capitalize',
+                      },
+                    }}
+                    color="black"
+                    variant="contained"
+                    onClick={handleRetry}
+                  >
+                  Try Again
+                  </Button>
+              <Button
+                    sx={{
+                      textTransform: 'none',
+                      '&::first-letter': {
+                        textTransform: 'capitalize',
+                      },
+                    }}
+                    color="black"
+                    variant="contained"
+                    onClick={handleCloseErrorModal}
+                  >
+                  Close
+                  </Button>
+            </DialogActions>
+          </Dialog>
         </ThemeProvider>
       </Box>
     </Box>

@@ -15,25 +15,17 @@ load_dotenv()
 def generate_recipe(ingredients, api_key):
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-pro')
-    # Format ingredients for the prompt
-    formatted_ingredients = ', '.join([f"{ingredient['name']} ({ingredient['quantity']})" for ingredient in ingredients])
-    
+   
     prompt = (
-        f"Hey, you are a well-versed chef. It is Saturday evening, and I am looking to cook dinner. "
-        f"These are some ingredients in my pantry: {formatted_ingredients}. Generate three different recipes using what I have; "
-        f"it is not necessary to use everything. The output should be a JSON array of three elements and each element should contain an id number field named 'id', recipe name field named 'name', "
-        f"description field name named 'description', array of ingredients named 'ingredients', and array of step-by-step instructions named "
-        f"instructions. Don't begin and end with ```JSON and ```. Very important to be an array."
+        f" Hey, you are a well-versed chef. It is Saturday evening, and I am looking to cook dinner. "
+        f"These are some ingredients in my pantry: {', '.join(ingredients)}. Generate three different recipes using what I have; "
+        f"it is not necessary to use everything. The output should be a JSON array of three elements and each element should contain a a id number field named 'id', recipe name field named 'name', "
+        f"description field name named 'description', array of ingredients named 'ingredients', and array of step by step instructions named "
+        f"instructions'. don't begin and end with ```JSON and ```. very important to be an array"
     )
-    #prompt = (
-     #   f" Hey, you are a well-versed chef. It is Saturday evening, and I am looking to cook dinner. "
-      #  f"These are some ingredients in my pantry: {', '.join(ingredients)}. Generate three different recipes using what I have; "
-      #  f"it is not necessary to use everything. The output should be a JSON array of three elements and each element should contain a a id number field named 'id', recipe name field named 'name', "
-      #  f"description field name named 'description', array of ingredients named 'ingredients', and array of step by step instructions named "
-      #  f"instructions'. don't begin and end with ```JSON and ```. very important to be an array"
-    #)
     response = model.generate_content(prompt)
     return response.text
+
 
 @app.route('/generate-recipes', methods=['POST'])
 def generate_recipes():
@@ -48,6 +40,7 @@ def generate_recipes():
     
     
     return {'recipe' : recipe}
+
 
 if __name__ == '__main__':
     app.run(port=5000, debug=True)
