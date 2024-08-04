@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useState, useEffect } from 'react';
 import { firestore, storage } from '@/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, uploadString} from 'firebase/storage';
 import { Box, Typography, Modal, Stack, TextField, Button, IconButton, Paper, InputBase, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,  CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions,  List, ListItem, ListItemText, Card, CardContent, Container, Grid } from '@mui/material';
 import { tableCellClasses } from '@mui/material/TableCell';
 import { collection, doc, getDocs, query, setDoc, deleteDoc, getDoc, updateDoc } from 'firebase/firestore';
@@ -17,6 +17,7 @@ import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import axios from 'axios';
+import Webcam from 'react-webcam';
 
 
 
@@ -96,6 +97,11 @@ export default function Home() {
   const [preview, setPreview] = useState(null);
   const [uploadedUrl, setUploadedUrl] = useState(null);
   const [showInput, setShowInput] = useState(false);
+
+
+  const [capturedImage, setCapturedImage] = useState(null);
+  const [showWebcam, setShowWebcam] = useState(false);
+  const webcamRef = React.useRef(null);
 
   const updateInventory = async () => {
     const snapshot = query(collection(firestore, 'inventory'));
@@ -189,29 +195,22 @@ export default function Home() {
   }
 
   const uploadImage = async() => {
-    if (!file) {
+    if (!file && !capturedImage) {
       const url = '/no image.png';
       setUploadedUrl(url);
       return url;
     }
-    const storageRef = ref(storage, `images/${file.name}`);
-
-    try {
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-      setUploadedUrl(url);
-      return url;
-    } catch (error) {
-      console.log("Error uploading the file", error);
-      return null;
-    } 
-
-  }
-
-  const handleUpload = () => {
-    setShowInput(true); // Show file input when button is clicked
+    //const storageRef = ref(storage, `images/${file.name}`);
+    let imageToUpload = preview || capturedImage;
+    if (imageToUpload) {
+      const storageRef = ref(storage, `images/${Date.now()}.jpg`);
+      await uploadString(storageRef, imageToUpload, 'data_url');
+      const downloadURL = await getDownloadURL(storageRef);
+      return downloadURL;
+    }
+    return null;
   };
-
+   
 
   const addItem = async (item, addQuantity, imageUrl) => {
     
@@ -253,28 +252,41 @@ export default function Home() {
     await updateInventory();
   };
 
+  
   const editItem = async () => {
-    
     const docRef = doc(collection(firestore, 'inventory'), editingItem);
     const docSnap = await getDoc(docRef);
-  
+
     if (docSnap.exists()) {
-      const { quantity } = docSnap.data();
-      // If the name has changed, create a new document with the new name
-      if (itemName !== editingItem) {
-        // Set the new item with the updated quantity
-        await setDoc(doc(collection(firestore, 'inventory'), itemName), { quantity: itemQuantity });
-        // Delete the old item
-        await deleteDoc(docRef);
-      } else {
-        // Update the quantity if the name hasn't changed
-        await setDoc(docRef, { quantity: itemQuantity});
-      }
+        const { quantity, imageUrl } = docSnap.data(); // Fetch existing data
+
+       /* if (file) {
+          const url = await uploadImage();
+        }*/
+        file ? console.log("yes") : console.log("no");
+        capturedImage ? console.log("yes") : console.log("no");
+        preview ? console.log("yes") : console.log("no");
+        // If the name has changed, create a new document with the new name
+        if (itemName !== editingItem) {
+            // Set the new item with the updated quantity and imageUrl
+            await setDoc(doc(collection(firestore, 'inventory'), itemName), { 
+                quantity: itemQuantity,
+                imageUrl: file || capturedImage ? await uploadImage() : imageUrl // Use the existing imageUrl or update as needed
+            });
+            // Delete the old item
+            await deleteDoc(docRef);
+        } else {
+            // Update the quantity and optionally imageUrl if the name hasn't changed
+            await setDoc(docRef, { 
+                quantity: itemQuantity,
+                imageUrl: file || capturedImage ? await uploadImage() : imageUrl // Update imageUrl if needed
+            });
+        }
     }
-  
+
     await updateInventory();
-  };
-  
+};
+
  
 
   useEffect(() => {
@@ -295,6 +307,31 @@ export default function Home() {
   };
   
   const handleEditClose = () => setEditOpen(false);
+
+  const handleUploadClick = () => {
+    setShowInput(true);
+    setShowWebcam(false);
+    setCapturedImage(null); 
+  };
+
+  const handleCaptureClick = () => {
+    setShowInput(false);
+    setShowWebcam(true);
+    setPreview(null);
+  };
+
+  const handleCapture = React.useCallback(() => {
+    const imageSrc = webcamRef.current.getScreenshot();
+    setCapturedImage(imageSrc);
+    setShowWebcam(false);
+    //setShowInput(false); // Hide file input when using webcam
+  }, [webcamRef]);
+
+  const handleRetake = () => {
+    setCapturedImage(null);
+    setShowWebcam(true);
+    //setShowInput(false); // Hide file input when retaking photo
+  };
 
   const filteredInventory = inventory.filter(({ name }) =>
     name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -367,41 +404,103 @@ export default function Home() {
             
           />
           
-          
-          {!showInput ? (
-            <Button
-              sx={{
-                textTransform: 'none', // Disable default uppercase transformation
-                '&::first-letter': {
-                  textTransform: 'capitalize', // Capitalize the first letter
-                },
-              }}
-              color="black"
-              variant="contained"
-              onClick={handleUpload}
-            >
-              Upload Image
-            </Button>
-          ) : (
+          <Button
+            sx={{
+              textTransform: 'none', // Disable default uppercase transformation
+              '&::first-letter': {
+                textTransform: 'capitalize', // Capitalize the first letter
+              },
+            }}
+            color="black"
+            variant="contained"
+            onClick={handleUploadClick}
+          >
+            Upload Image
+          </Button>
+          <Button
+            sx={{
+              textTransform: 'none', // Disable default uppercase transformation
+              '&::first-letter': {
+                textTransform: 'capitalize', // Capitalize the first letter
+              },
+            }}
+            color="black"
+            variant="contained"
+            onClick={handleCaptureClick}
+          >
+            Capture Image
+          </Button>
+
+          {showInput && (
             <input
               type="file"
               accept="image/*"
               onChange={handleFileChange}
-              style={{ display: 'block' }} // Show the input element
+              style={{ display: 'block', marginTop: '10px' }} // Show the input element
             />
           )}
-         
-          {preview && (
-            <div>
+
+{showWebcam && !capturedImage && (
+            <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+              <Webcam
+                audio={false}
+                height={200}
+                ref={webcamRef}
+                screenshotFormat="image/jpeg"
+                width={220}
+                videoConstraints={{ width: 220, height: 200, facingMode: "user" }}
+              />
+              <Button
+                onClick={handleCapture}
+                sx={{
+                  textTransform: 'none', // Disable default uppercase transformation
+                  '&::first-letter': {
+                    textTransform: 'capitalize', // Capitalize the first letter
+                  },
+                }}
+                color="black"
+                variant="contained"
+              >
+                Capture
+              </Button>
+            </Box>
+          )}
+
+          {capturedImage && (
+            <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+              <Image
+                src={capturedImage}
+                alt="Captured image"
+                width={200}
+                height={200}
+                layout="responsive"
+              />
+              <Button
+                onClick={handleRetake}
+                sx={{
+                  textTransform: 'none', // Disable default uppercase transformation
+                  '&::first-letter': {
+                    textTransform: 'capitalize', // Capitalize the first letter
+                  },
+                }}
+                color="black"
+                variant="contained"
+              >
+                Retake Image
+              </Button>
+            </Box>
+          )}
+
+          {preview && !showWebcam && !capturedImage && (
+            <Box display="flex" flexDirection="column" alignItems="center">
               <Image
                 src={preview}
                 alt="Uploaded image"
                 width={200}
                 height={200}
                 layout="responsive"
-              
               />
-            </div>
+            </Box>
           )}
           
           
@@ -423,6 +522,8 @@ export default function Home() {
                 addItem(itemName, itemQuantity, await uploadImage());
                 setItemName('');
                 setItemQuantity(1);
+                setShowInput(false);
+                setShowWebcam(false);
                 setFile(null);
                 setPreview(null);
                 setUploadedUrl(null);
@@ -443,6 +544,8 @@ export default function Home() {
               onClick={() => {
                 setItemName('');
                 setItemQuantity(1);
+                setShowInput(false);
+                setShowWebcam(false);
                 setFile(null);
                 setPreview(null);
                 setUploadedUrl(null);
@@ -498,40 +601,104 @@ export default function Home() {
               }
             }}
           />
-           {!showInput ? (
-            <Button
-              sx={{
-                textTransform: 'none', // Disable default uppercase transformation
-                '&::first-letter': {
-                  textTransform: 'capitalize', // Capitalize the first letter
-                },
-              }}
-              color="black"
-              variant="contained"
-              onClick={handleUpload}
-            >
-              Upload Image
-            </Button>
-          ) : (
+
+<Button
+            sx={{
+              textTransform: 'none', // Disable default uppercase transformation
+              '&::first-letter': {
+                textTransform: 'capitalize', // Capitalize the first letter
+              },
+            }}
+            color="black"
+            variant="contained"
+            onClick={handleUploadClick}
+          >
+            Upload Image
+          </Button>
+          <Button
+            sx={{
+              textTransform: 'none', // Disable default uppercase transformation
+              '&::first-letter': {
+                textTransform: 'capitalize', // Capitalize the first letter
+              },
+            }}
+            color="black"
+            variant="contained"
+            onClick={handleCaptureClick}
+          >
+            Capture Image
+          </Button>
+
+          {showInput && (
             <input
               type="file"
               accept="image/*"
               onChange={handleFileChange}
-              style={{ display: 'block' }} // Show the input element
+              style={{ display: 'block', marginTop: '10px' }} // Show the input element
             />
           )}
-         
-          {preview && (
-            <div>
+
+{showWebcam && !capturedImage && (
+            <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+              <Webcam
+                audio={false}
+                height={200}
+                ref={webcamRef}
+                screenshotFormat="image/jpeg"
+                width={220}
+                videoConstraints={{ width: 220, height: 200, facingMode: "user" }}
+              />
+              <Button
+                onClick={handleCapture}
+                sx={{
+                  textTransform: 'none', // Disable default uppercase transformation
+                  '&::first-letter': {
+                    textTransform: 'capitalize', // Capitalize the first letter
+                  },
+                }}
+                color="black"
+                variant="contained"
+              >
+                Capture
+              </Button>
+            </Box>
+          )}
+
+          {capturedImage && (
+            <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+              <Image
+                src={capturedImage}
+                alt="Captured image"
+                width={200}
+                height={200}
+                layout="responsive"
+              />
+              <Button
+                onClick={handleRetake}
+                sx={{
+                  textTransform: 'none', // Disable default uppercase transformation
+                  '&::first-letter': {
+                    textTransform: 'capitalize', // Capitalize the first letter
+                  },
+                }}
+                color="black"
+                variant="contained"
+              >
+                Retake Image
+              </Button>
+            </Box>
+          )}
+
+          {preview && !showWebcam && !capturedImage && (
+            <Box display="flex" flexDirection="column" alignItems="center">
               <Image
                 src={preview}
                 alt="Uploaded image"
                 width={200}
                 height={200}
                 layout="responsive"
-              
               />
-            </div>
+            </Box>
           )}
           </ThemeProvider>
           <Box display="flex" justifyContent="flex-end" gap={2}>
@@ -549,6 +716,8 @@ export default function Home() {
                 editItem();
                 setItemName('');
                 setItemQuantity(1);
+                setShowInput(false);
+                setShowWebcam(false);
                 setFile(null);
                 setPreview(null);
                 setUploadedUrl(null);
@@ -571,6 +740,8 @@ export default function Home() {
               onClick={() => {
                 setItemName('');
                 setItemQuantity(1);
+                setShowInput(false);
+                setShowWebcam(false);
                 setFile(null);
                 setPreview(null);
                 setUploadedUrl(null);
