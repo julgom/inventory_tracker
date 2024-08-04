@@ -1,5 +1,6 @@
 
-'use client'
+'use client';
+
 import Image from "next/image";
 import { useState, useEffect } from 'react';
 import { firestore, storage } from '@/firebase';
@@ -18,6 +19,9 @@ import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import axios from 'axios';
 import Webcam from 'react-webcam';
+import { signOut, useSession } from 'next-auth/react';
+import { redirect } from 'next/navigation';
+
 
 
 
@@ -102,6 +106,8 @@ export default function Home() {
   const [capturedImage, setCapturedImage] = useState(null);
   const [showWebcam, setShowWebcam] = useState(false);
   const webcamRef = React.useRef(null);
+
+  const session = useSession();
 
   const updateInventory = async () => {
     const snapshot = query(collection(firestore, 'inventory'));
@@ -195,7 +201,7 @@ export default function Home() {
   }
 
   const uploadImage = async() => {
-    if (!file && !capturedImage) {
+    if (!preview && !capturedImage) {
       const url = '/no image.png';
       setUploadedUrl(url);
       return url;
@@ -211,6 +217,7 @@ export default function Home() {
       return url;
     }
     if (preview) {
+      
       const storageRef = ref(storage, `images/${file.name}`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
@@ -239,7 +246,7 @@ export default function Home() {
     await updateInventory();
   };
 
-  const removeItem = async (item, removeQuantity) => {
+  const removeItem = async (item, removeQuantity, imageUrl) => {
     const docRef = doc(collection(firestore, 'inventory'), item);
     const docSnap = await getDoc(docRef);
 
@@ -248,7 +255,7 @@ export default function Home() {
       if (quantity === 1) {
         await deleteDoc(docRef);
       } else {
-        await setDoc(docRef, { quantity: quantity - removeQuantity});
+        await setDoc(docRef, { quantity: quantity - removeQuantity, imageUrl});
       }
     }
 
@@ -274,23 +281,20 @@ export default function Home() {
        /* if (file) {
           const url = await uploadImage();
         }*/
-        file ? console.log("yes") : console.log("no");
-        capturedImage ? console.log("yes") : console.log("no");
-        preview ? console.log("yes") : console.log("no");
         // If the name has changed, create a new document with the new name
         if (itemName !== editingItem) {
             // Set the new item with the updated quantity and imageUrl
             await setDoc(doc(collection(firestore, 'inventory'), itemName), { 
-                quantity: itemQuantity,
-                imageUrl: file || capturedImage ? await uploadImage() : imageUrl // Use the existing imageUrl or update as needed
+                quantity: quantity,
+                imageUrl: preview || capturedImage ? await uploadImage() : imageUrl // Use the existing imageUrl or update as needed
             });
             // Delete the old item
             await deleteDoc(docRef);
         } else {
             // Update the quantity and optionally imageUrl if the name hasn't changed
             await setDoc(docRef, { 
-                quantity: itemQuantity,
-                imageUrl: file || capturedImage ? await uploadImage() : imageUrl // Update imageUrl if needed
+                quantity: quantity,
+                imageUrl: preview || capturedImage ? await uploadImage() : imageUrl // Update imageUrl if needed
             });
         }
     }
@@ -349,12 +353,47 @@ export default function Home() {
   );
 
   return (
+    <><>
+    <header style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      backgroundColor: 'black',
+      color: 'white',
+      padding: '20px 40px',  // Increased padding for more vertical space
+      height: '80px',        // Increased height for the header
+      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'  // Optional: adds a shadow for depth
+    }}>
+      <div style={{ fontSize: '20px', fontWeight: 'bold' }}>
+        {session?.data?.user?.name ? `Hi, ${session.data.user.name}` : 'Hi, Guest'}
+      </div>
+      <button
+        onClick={() => signOut()}
+        style={{
+          backgroundColor: 'white',
+          color: 'black',
+          border: 'none',
+          borderRadius: '4px',
+          padding: '10px 20px',
+          fontSize: '16px',
+          cursor: 'pointer',
+          transition: 'background-color 0.3s',
+        }}
+        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'white'}
+      >
+        Logout
+      </button>
+    </header>
+    </>
+   
+    
     <Box
       width="100vw"
       height="100vh"
       display="flex"
       flexDirection="column"
-      
+
       alignItems="center"
       gap={2}
       sx={{
@@ -366,103 +405,53 @@ export default function Home() {
         marginTop: '8px', // Add margin if you prefer this method
       }}
     >
-    
-  
 
-      <Modal open={open}>
-        <Box
-        
-          position="absolute"
-          top="50%"
-          left="50%"
-          width={400}
-          bgcolor="white"
-          boxShadow={24}
-          p={4}
-          display="flex"
-          flexDirection="column"
-          gap={3}
-          sx={{
-            transform: 'translate(-50%, -50%)',
-            borderRadius: '16px',
-          }}
-        >
-         
-          <Typography variant="h6" fontWeight="bold" textAlign="center">Add New Item</Typography>
-          <ThemeProvider theme={theme}>
-            <TextField
-            variant='outlined'
-            fullWidth
-            label="Item name"
-            color="black"
-            value={itemName}
-            onChange={(e) => {
-              setItemName(e.target.value);
-            }}
-          />
-          <NumberInput 
-            aria-label="Quantity Input"
-            min={1}
-            value={itemQuantity} 
-            onChange={(e, value) => {
-              if (value == '' || value == null) {
-                setItemQuantity(1);
-              } else {
-                setItemQuantity(value);
-              }
-              
-            }}
-            
-          />
-          
-          <Button
+
+
+        <Modal open={open}>
+          <Box
+
+            position="absolute"
+            top="50%"
+            left="50%"
+            width={400}
+            bgcolor="white"
+            boxShadow={24}
+            p={4}
+            display="flex"
+            flexDirection="column"
+            gap={3}
             sx={{
-              textTransform: 'none', // Disable default uppercase transformation
-              '&::first-letter': {
-                textTransform: 'capitalize', // Capitalize the first letter
-              },
+              transform: 'translate(-50%, -50%)',
+              borderRadius: '16px',
             }}
-            color="black"
-            variant="contained"
-            onClick={handleUploadClick}
           >
-            Upload Image
-          </Button>
-          <Button
-            sx={{
-              textTransform: 'none', // Disable default uppercase transformation
-              '&::first-letter': {
-                textTransform: 'capitalize', // Capitalize the first letter
-              },
-            }}
-            color="black"
-            variant="contained"
-            onClick={handleCaptureClick}
-          >
-            Capture Image
-          </Button>
 
-          {showInput && (
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              style={{ display: 'block', marginTop: '10px' }} // Show the input element
-            />
-          )}
+            <Typography variant="h6" fontWeight="bold" textAlign="center">Add New Item</Typography>
+            <ThemeProvider theme={theme}>
+              <TextField
+                variant='outlined'
+                fullWidth
+                label="Item name"
+                color="black"
+                value={itemName}
+                onChange={(e) => {
+                  setItemName(e.target.value);
+                } } />
+              <NumberInput
+                aria-label="Quantity Input"
+                min={1}
+                value={itemQuantity}
+                onChange={(e, value) => {
+                  if (value == '' || value == null) {
+                    setItemQuantity(1);
+                  } else {
+                    setItemQuantity(value);
+                  }
 
-{showWebcam && !capturedImage && (
-            <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
-              <Webcam
-                audio={false}
-                height={200}
-                ref={webcamRef}
-                screenshotFormat="image/jpeg"
-                width={220}
-                videoConstraints={{ width: 220, height: 200, facingMode: "user" }}
-              />
+                } } />
+
               <Button
-                onClick={handleCapture}
                 sx={{
                   textTransform: 'none', // Disable default uppercase transformation
                   '&::first-letter': {
@@ -471,23 +460,11 @@ export default function Home() {
                 }}
                 color="black"
                 variant="contained"
+                onClick={handleUploadClick}
               >
-                Capture
+                Upload Image
               </Button>
-            </Box>
-          )}
-
-          {capturedImage && (
-            <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
-              <Image
-                src={capturedImage}
-                alt="Captured image"
-                width={200}
-                height={200}
-                layout="responsive"
-              />
               <Button
-                onClick={handleRetake}
                 sx={{
                   textTransform: 'none', // Disable default uppercase transformation
                   '&::first-letter': {
@@ -496,171 +473,178 @@ export default function Home() {
                 }}
                 color="black"
                 variant="contained"
+                onClick={handleCaptureClick}
               >
-                Retake Image
+                Capture Image
               </Button>
-            </Box>
-          )}
 
-          {preview && !showWebcam && !capturedImage && (
-            <Box display="flex" flexDirection="column" alignItems="center">
-              <Image
-                src={preview}
-                alt="Uploaded image"
-                width={200}
-                height={200}
-                layout="responsive"
-              />
-            </Box>
-          )}
-          
-          
+              {showInput && (
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  style={{ display: 'block', marginTop: '10px' }} // Show the input element
+                />
+              )}
 
-          </ThemeProvider>
-          <Box display="flex" justifyContent="flex-end" gap={2}>
-          <ThemeProvider theme={theme}>
-            <Button
-              sx={{
-                textTransform: 'none', // Disable default uppercase transformation
-                '&::first-letter': {
-                  textTransform: 'capitalize', // Capitalize the first letter
-                },
-              }}
-              color="black"
-              variant="contained"
-              onClick={async () => {
-                
-                addItem(itemName, itemQuantity, await uploadImage());
-                setItemName('');
-                setItemQuantity(1);
-                setShowInput(false);
-                setShowWebcam(false);
-                setFile(null);
-                setPreview(null);
-                setUploadedUrl(null);
-                handleClose();
-              }}
-            >
-              Add
-            </Button>
-            <Button
-              sx={{
-                textTransform: 'none', // Disable default uppercase transformation
-                '&::first-letter': {
-                  textTransform: 'capitalize', // Capitalize the first letter
-                },
-              }}
-              color="black"
-              variant="outlined"
-              onClick={() => {
-                setItemName('');
-                setItemQuantity(1);
-                setShowInput(false);
-                setShowWebcam(false);
-                setFile(null);
-                setPreview(null);
-                setUploadedUrl(null);
-                handleClose();
-              }}
-            >
-              Cancel
-            </Button>
+              {showWebcam && !capturedImage && (
+                <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+                  <Webcam
+                    audio={false}
+                    height={200}
+                    ref={webcamRef}
+                    screenshotFormat="image/jpeg"
+                    width={220}
+                    videoConstraints={{ width: 220, height: 200, facingMode: "user" }} />
+                  <Button
+                    onClick={handleCapture}
+                    sx={{
+                      textTransform: 'none', // Disable default uppercase transformation
+                      '&::first-letter': {
+                        textTransform: 'capitalize', // Capitalize the first letter
+                      },
+                    }}
+                    color="black"
+                    variant="contained"
+                  >
+                    Capture
+                  </Button>
+                </Box>
+              )}
+
+              {capturedImage && (
+                <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+                  <Image
+                    src={capturedImage}
+                    alt="Captured image"
+                    width={200}
+                    height={200}
+                    layout="responsive" />
+                  <Button
+                    onClick={handleRetake}
+                    sx={{
+                      textTransform: 'none', // Disable default uppercase transformation
+                      '&::first-letter': {
+                        textTransform: 'capitalize', // Capitalize the first letter
+                      },
+                    }}
+                    color="black"
+                    variant="contained"
+                  >
+                    Retake Image
+                  </Button>
+                </Box>
+              )}
+
+              {preview && !showWebcam && !capturedImage && (
+                <Box display="flex" flexDirection="column" alignItems="center">
+                  <Image
+                    src={preview}
+                    alt="Uploaded image"
+                    width={200}
+                    height={200}
+                    layout="responsive" />
+                </Box>
+              )}
+
+
+
             </ThemeProvider>
+            <Box display="flex" justifyContent="flex-end" gap={2}>
+              <ThemeProvider theme={theme}>
+                <Button
+                  sx={{
+                    textTransform: 'none', // Disable default uppercase transformation
+                    '&::first-letter': {
+                      textTransform: 'capitalize', // Capitalize the first letter
+                    },
+                  }}
+                  color="black"
+                  variant="contained"
+                  onClick={async () => {
+
+                    addItem(itemName, itemQuantity, await uploadImage());
+                    setItemName('');
+                    setItemQuantity(1);
+                    setShowInput(false);
+                    setShowWebcam(false);
+                    setFile(null);
+                    setPreview(null);
+                    setUploadedUrl(null);
+                    handleClose();
+                  } }
+                >
+                  Add
+                </Button>
+                <Button
+                  sx={{
+                    textTransform: 'none', // Disable default uppercase transformation
+                    '&::first-letter': {
+                      textTransform: 'capitalize', // Capitalize the first letter
+                    },
+                  }}
+                  color="black"
+                  variant="outlined"
+                  onClick={() => {
+                    setItemName('');
+                    setItemQuantity(1);
+                    setShowInput(false);
+                    setShowWebcam(false);
+                    setFile(null);
+                    setPreview(null);
+                    setUploadedUrl(null);
+                    handleClose();
+                  } }
+                >
+                  Cancel
+                </Button>
+              </ThemeProvider>
+            </Box>
           </Box>
-        </Box>
-      </Modal>
+        </Modal>
 
-      <Modal open={editOpen}>
-      <Box
-          position="absolute"
-          top="50%"
-          left="50%"
-          width={400}
-          bgcolor="white"
-          boxShadow={24}
-          p={4}
-          display="flex"
-          flexDirection="column"
-          gap={3}
-          sx={{
-            transform: 'translate(-50%, -50%)',
-            borderRadius: '16px',
-          }}
-        >
-         
-          <Typography variant="h6" fontWeight="bold" textAlign="center">Edit Item</Typography>
-          <ThemeProvider theme={theme}>
-            <TextField
-            variant='outlined'
-            fullWidth
-            label="Item name"
-            color="black"
-            value={itemName}
-            onChange={(e) => {
-              setItemName(e.target.value);
-            }}
-          />
-          <NumberInput 
-            aria-label="Quantity Input"
-            min={1}
-            value={itemQuantity} 
-            onChange={(e, value) => {
-              if (value == '' || value == null) {
-                setItemQuantity(1);
-              } else {
-                setItemQuantity(value);
-              }
-            }}
-          />
-
-<Button
+        <Modal open={editOpen}>
+          <Box
+            position="absolute"
+            top="50%"
+            left="50%"
+            width={400}
+            bgcolor="white"
+            boxShadow={24}
+            p={4}
+            display="flex"
+            flexDirection="column"
+            gap={3}
             sx={{
-              textTransform: 'none', // Disable default uppercase transformation
-              '&::first-letter': {
-                textTransform: 'capitalize', // Capitalize the first letter
-              },
+              transform: 'translate(-50%, -50%)',
+              borderRadius: '16px',
             }}
-            color="black"
-            variant="contained"
-            onClick={handleUploadClick}
           >
-            Upload Image
-          </Button>
-          <Button
-            sx={{
-              textTransform: 'none', // Disable default uppercase transformation
-              '&::first-letter': {
-                textTransform: 'capitalize', // Capitalize the first letter
-              },
-            }}
-            color="black"
-            variant="contained"
-            onClick={handleCaptureClick}
-          >
-            Capture Image
-          </Button>
 
-          {showInput && (
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              style={{ display: 'block', marginTop: '10px' }} // Show the input element
-            />
-          )}
+            <Typography variant="h6" fontWeight="bold" textAlign="center">Edit Item</Typography>
+            <ThemeProvider theme={theme}>
+              <TextField
+                variant='outlined'
+                fullWidth
+                label="Item name"
+                color="black"
+                value={itemName}
+                onChange={(e) => {
+                  setItemName(e.target.value);
+                } } />
+              <NumberInput
+                aria-label="Quantity Input"
+                min={1}
+                value={itemQuantity}
+                onChange={(e, value) => {
+                  if (value == '' || value == null) {
+                    setItemQuantity(1);
+                  } else {
+                    setItemQuantity(value);
+                  }
+                } } />
 
-{showWebcam && !capturedImage && (
-            <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
-              <Webcam
-                audio={false}
-                height={200}
-                ref={webcamRef}
-                screenshotFormat="image/jpeg"
-                width={220}
-                videoConstraints={{ width: 220, height: 200, facingMode: "user" }}
-              />
               <Button
-                onClick={handleCapture}
                 sx={{
                   textTransform: 'none', // Disable default uppercase transformation
                   '&::first-letter': {
@@ -669,23 +653,11 @@ export default function Home() {
                 }}
                 color="black"
                 variant="contained"
+                onClick={handleUploadClick}
               >
-                Capture
+                Upload Image
               </Button>
-            </Box>
-          )}
-
-          {capturedImage && (
-            <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
-              <Image
-                src={capturedImage}
-                alt="Captured image"
-                width={200}
-                height={200}
-                layout="responsive"
-              />
               <Button
-                onClick={handleRetake}
                 sx={{
                   textTransform: 'none', // Disable default uppercase transformation
                   '&::first-letter': {
@@ -694,84 +666,144 @@ export default function Home() {
                 }}
                 color="black"
                 variant="contained"
+                onClick={handleCaptureClick}
               >
-                Retake Image
+                Capture Image
               </Button>
-            </Box>
-          )}
 
-          {preview && !showWebcam && !capturedImage && (
-            <Box display="flex" flexDirection="column" alignItems="center">
-              <Image
-                src={preview}
-                alt="Uploaded image"
-                width={200}
-                height={200}
-                layout="responsive"
-              />
-            </Box>
-          )}
-          </ThemeProvider>
-          <Box display="flex" justifyContent="flex-end" gap={2}>
-          <ThemeProvider theme={theme}>
-            <Button
-              sx={{
-                textTransform: 'none', // Disable default uppercase transformation
-                '&::first-letter': {
-                  textTransform: 'capitalize', // Capitalize the first letter
-                },
-              }}
-              color="black"
-              variant="contained"
-              onClick={ () => {
-                editItem();
-                setItemName('');
-                setItemQuantity(1);
-                setShowInput(false);
-                setShowWebcam(false);
-                setFile(null);
-                setPreview(null);
-                setUploadedUrl(null);
-                handleEditClose();
-                
-              }}
-            >
-              Update
-            </Button>
-            
-            <Button
-              sx={{
-                textTransform: 'none', // Disable default uppercase transformation
-                '&::first-letter': {
-                  textTransform: 'capitalize', // Capitalize the first letter
-                },
-              }}
-              color="black"
-              variant="outlined"
-              onClick={() => {
-                setItemName('');
-                setItemQuantity(1);
-                setShowInput(false);
-                setShowWebcam(false);
-                setFile(null);
-                setPreview(null);
-                setUploadedUrl(null);
-                handleEditClose();
-                
-                
-              }}
-            >
-              Cancel
-            </Button>
+              {showInput && (
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  style={{ display: 'block', marginTop: '10px' }} // Show the input element
+                />
+              )}
+
+              {showWebcam && !capturedImage && (
+                <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+                  <Webcam
+                    audio={false}
+                    height={200}
+                    ref={webcamRef}
+                    screenshotFormat="image/jpeg"
+                    width={220}
+                    videoConstraints={{ width: 220, height: 200, facingMode: "user" }} />
+                  <Button
+                    onClick={handleCapture}
+                    sx={{
+                      textTransform: 'none', // Disable default uppercase transformation
+                      '&::first-letter': {
+                        textTransform: 'capitalize', // Capitalize the first letter
+                      },
+                    }}
+                    color="black"
+                    variant="contained"
+                  >
+                    Capture
+                  </Button>
+                </Box>
+              )}
+
+              {capturedImage && (
+                <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+                  <Image
+                    src={capturedImage}
+                    alt="Captured image"
+                    width={200}
+                    height={200}
+                    layout="responsive" />
+                  <Button
+                    onClick={handleRetake}
+                    sx={{
+                      textTransform: 'none', // Disable default uppercase transformation
+                      '&::first-letter': {
+                        textTransform: 'capitalize', // Capitalize the first letter
+                      },
+                    }}
+                    color="black"
+                    variant="contained"
+                  >
+                    Retake Image
+                  </Button>
+                </Box>
+              )}
+
+              {preview && !showWebcam && !capturedImage && (
+                <Box display="flex" flexDirection="column" alignItems="center">
+                  <Image
+                    src={preview}
+                    alt="Uploaded image"
+                    width={200}
+                    height={200}
+                    layout="responsive" />
+                </Box>
+              )}
             </ThemeProvider>
-          </Box>
-          
-        </Box>
+            <Box display="flex" justifyContent="flex-end" gap={2}>
+              <ThemeProvider theme={theme}>
+                <Button
+                  sx={{
+                    textTransform: 'none', // Disable default uppercase transformation
+                    '&::first-letter': {
+                      textTransform: 'capitalize', // Capitalize the first letter
+                    },
+                  }}
+                  color="black"
+                  variant="contained"
+                  onClick={() => {
+                    editItem();
+                    setItemName('');
+                    setItemQuantity(1);
+                    setShowInput(false);
+                    setShowWebcam(false);
+                    setFile(null);
+                    setPreview(null);
+                    setUploadedUrl(null);
+                    handleEditClose();
 
-        
-      </Modal>
-      <Typography variant="h5" fontWeight="bold">My Pantry</Typography>
-      <Box sx={{
+                  } }
+                >
+                  Update
+                </Button>
+
+                <Button
+                  sx={{
+                    textTransform: 'none', // Disable default uppercase transformation
+                    '&::first-letter': {
+                      textTransform: 'capitalize', // Capitalize the first letter
+                    },
+                  }}
+                  color="black"
+                  variant="outlined"
+                  onClick={() => {
+                    setItemName('');
+                    setItemQuantity(1);
+                    setShowInput(false);
+                    setShowWebcam(false);
+                    setFile(null);
+                    setPreview(null);
+                    setUploadedUrl(null);
+                    handleEditClose();
+
+
+                  } }
+                >
+                  Cancel
+                </Button>
+              </ThemeProvider>
+            </Box>
+
+          </Box>
+        </Modal>
+
+        <Box sx={{ paddingTop: '80px'}}>
+        <Box sx={{ display: 'flex', justifyContent: 'center'}}>
+        <Typography variant="h5" fontWeight="bold">
+          My Pantry
+        </Typography>
+      </Box>
+        <Box sx={{
           marginY: 2,
           display: 'flex',
           flexDirection: 'row',
@@ -780,14 +812,13 @@ export default function Home() {
           <Stack width="100%" direction="row" alignItems="center" spacing={2}>
             <Paper
               component="form"
-              sx={{ p: '2px 4px', display: 'flex', alignItems: 'center', width: 400}}
+              sx={{ p: '2px 4px', display: 'flex', alignItems: 'center', width: 400 }}
             >
               <InputBase
                 sx={{ ml: 1, flex: 1 }}
                 placeholder="Search items.."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+                onChange={(e) => setSearchQuery(e.target.value)} />
               <IconButton type="button" sx={{ p: '10px' }} aria-label="search">
                 <SearchRoundedIcon />
               </IconButton>
@@ -796,188 +827,189 @@ export default function Home() {
               <AddCircleRoundedIcon />
             </IconButton>
           </Stack>
-          
+
         </Box>
+       </Box>
+        <Box width="800px" sx={{paddingTop: '5px'}}>
 
-      <Box width="800px" >
-      
-      <TableContainer component={Paper} sx={{ maxHeight: 500, overflow: 'auto' }} >
-          <Table stickyHeader sx={{ minWidth: 700, tableLayout: 'fixed'}} aria-label="customized table">
-            <TableHead>
-              <TableRow >
-                <StyledTableCell align="center">Image</StyledTableCell>
-                <StyledTableCell align="center">Item Name</StyledTableCell>
-                <StyledTableCell align="center">Quantity</StyledTableCell>
-                <StyledTableCell align="right"></StyledTableCell>
-               
-              </TableRow>
-            </TableHead>
-            <TableBody >
-              {filteredInventory.map(({ name, quantity, imageUrl }) => (
-                <StyledTableRow key={name} >
-                  <StyledTableCell align="center">
-                    {imageUrl && <Image src={imageUrl} alt="Uploaded image" width={50} height={50} layout="responsive" />}
-                  </StyledTableCell>
-                  <StyledTableCell align="center" component="th" scope="row">
-                    {name.charAt(0).toUpperCase() + name.slice(1)}
-                  </StyledTableCell>
-                  <StyledTableCell align="center">
-                  <NumberInput 
-                    aria-label="Quantity Input"
-                    min={0}
-                    value={quantity}
-                    onChange={(e, value) => {
-                      if (value == 0) {
-                        deleteItem(name)
-                      } else if (value == '' || value == null) {
-                        setItemQuantity(quantity);
-                      } else if (value > quantity) {
-                        addItem(name, value - quantity);
-                      } else if (value < quantity) {
-                        removeItem(name, quantity - value);
-                      }
-                    }}
-                  />
-                  </StyledTableCell>
-                  <StyledTableCell align="center">
-                    
-                    <IconButton onClick={() => handleEditOpen(name, quantity, imageUrl)}>
-                      <EditRoundedIcon color="primary"/>
-                    </IconButton>
-                    <IconButton onClick={() => deleteItem(name)}>
-                      <DeleteRoundedIcon color="error"/>
-                    </IconButton>
-                  </StyledTableCell>
-                </StyledTableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        <ThemeProvider theme={theme}>
-          <Box  
-            sx={{
-              marginY: 4,
-              display: 'flex',
-              justifyContent: 'center',
-            }}>
-            <Button
-              sx={{
-                textTransform: 'none', // Disable default uppercase transformation
-                '&::first-letter': {
-                  textTransform: 'capitalize', // Capitalize the first letter
-                },
-              }}
-              color="black"
-              variant="contained"
-              onClick={generateRecipes}
-             >
-            Generate Recipes
-            </Button>
-          </Box>
-          <main style={{ padding: '16px' }}>
-            {isLoading && (
-              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <CircularProgress style={{ color: 'black' }} />
-              </div>
-            )}
+          <TableContainer component={Paper} sx={{ maxHeight: 500, overflow: 'auto' }}>
+            <Table stickyHeader sx={{ minWidth: 700, tableLayout: 'fixed' }} aria-label="customized table">
+              <TableHead>
+                <TableRow>
+                  <StyledTableCell align="center">Image</StyledTableCell>
+                  <StyledTableCell align="center">Item Name</StyledTableCell>
+                  <StyledTableCell align="center">Quantity</StyledTableCell>
+                  <StyledTableCell align="right"></StyledTableCell>
 
-            {!isLoading && recipes.length > 0 && (
-              <Dialog open={recipeOpen} onClose={handleCloseModal} fullWidth maxWidth="md">
-                <DialogContent style={{ paddingTop: '32px' }}>
-                  <Grid container spacing={4}>
-                    {recipes.map((recipe, i) => (
-                      <Grid item xs={12} md={4} key={i}>
-                        <Card key={recipe.id} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                          <h2 style={{ textAlign: 'center', marginBottom: '16px' }}>{recipe.name}</h2>
-                          <p style={{ textAlign: 'center', marginBottom: '24px' }}>{recipe.description}</p>
-                          <CardContent style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-                            <h3 style={{ textAlign: 'center', marginBottom: '8px' }}>Ingredients:</h3>
-                            <div style={{ backgroundColor: '#f5f5f5', border: '1px solid #ddd', borderRadius: '4px', padding: '8px', marginBottom: '24px' }}>
-                              <ul style={{ paddingLeft: '20px' }}>
-                                {recipe.ingredients.map((ingredient, j) => (
-                                  <li key={ingredient.id || j} style={{ marginBottom: '8px' }}>{ingredient}</li>
-                                ))}
-                              </ul>
-                            </div>
-                            <h3 style={{ textAlign: 'center', marginBottom: '8px' }}>Instructions:</h3>
-                            <ol style={{ paddingLeft: '20px' }}>
-                              {recipe.instructions.map((instruction, k) => (
-                                <li key={instruction.id || k} style={{ marginBottom: '8px' }}>{instruction}</li>
-                              ))}
-                            </ol>
-                          </CardContent>
-                        </Card>
-                      </Grid>
-                    ))}
-                  </Grid>
-                </DialogContent>
-                <DialogActions
-                  sx={{
-                    justifyContent: 'center',
-                    marginBottom: '12px',
-                    position: 'relative',
-                  }}
-                >
-                  <Button
-                    sx={{
-                      textTransform: 'none',
-                      '&::first-letter': {
-                        textTransform: 'capitalize',
-                      },
-                    }}
-                    color="black"
-                    variant="contained"
-                    onClick={handleCloseModal}
-                  >
-                  Close
-                  </Button>
-               </DialogActions>
-              </Dialog>
-            )}
-          </main>
-          <Dialog open={errorOpen} onClose={handleCloseErrorModal}>
-            <DialogContent style={{ paddingTop: '32px' }}>
-              <p style={{ textAlign: 'center', marginBottom: '24px' }}>{errorMessage}</p>
-            </DialogContent>
-            <DialogActions  
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredInventory.map(({ name, quantity, imageUrl }) => (
+                  <StyledTableRow key={name}>
+                    <StyledTableCell align="center">
+                      {imageUrl && <Image src={imageUrl} alt="Uploaded image" width={50} height={50} layout="responsive" />}
+                    </StyledTableCell>
+                    <StyledTableCell align="center" component="th" scope="row">
+                      {name.charAt(0).toUpperCase() + name.slice(1)}
+                    </StyledTableCell>
+                    <StyledTableCell align="center">
+                      <NumberInput
+                        aria-label="Quantity Input"
+                        min={0}
+                        value={quantity}
+                        onChange={(e, value) => {
+                          if (value == 0) {
+                            deleteItem(name);
+                          } else if (value == '' || value == null) {
+                            setItemQuantity(quantity);
+                          } else if (value > quantity) {
+                            addItem(name, value - quantity, imageUrl);
+                          } else if (value < quantity) {
+                            removeItem(name, quantity - value, imageUrl);
+                          }
+                        } } />
+                    </StyledTableCell>
+                    <StyledTableCell align="center">
+
+                      <IconButton onClick={() => handleEditOpen(name, quantity, imageUrl)}>
+                        <EditRoundedIcon color="primary" />
+                      </IconButton>
+                      <IconButton onClick={() => deleteItem(name)}>
+                        <DeleteRoundedIcon color="error" />
+                      </IconButton>
+                    </StyledTableCell>
+                  </StyledTableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          
+          <ThemeProvider theme={theme}>
+            <Box
               sx={{
+                marginY: 4,
+                display: 'flex',
                 justifyContent: 'center',
-                marginBottom: '12px',
-                position: 'relative',
               }}>
-            <Button
-                    sx={{
-                      textTransform: 'none',
-                      '&::first-letter': {
-                        textTransform: 'capitalize',
-                      },
-                    }}
-                    color="black"
-                    variant="contained"
-                    onClick={handleRetry}
-                  >
-                  Try Again
-                  </Button>
               <Button
+                sx={{
+                  textTransform: 'none', // Disable default uppercase transformation
+                  '&::first-letter': {
+                    textTransform: 'capitalize', // Capitalize the first letter
+                  },
+                }}
+                color="black"
+                variant="contained"
+                onClick={generateRecipes}
+              >
+                Generate Recipes
+              </Button>
+            </Box>
+            <main style={{ padding: '16px' }}>
+              {isLoading && (
+                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                  <CircularProgress style={{ color: 'black' }} />
+                </div>
+              )}
+
+              {!isLoading && recipes.length > 0 && (
+                <Dialog open={recipeOpen} onClose={handleCloseModal} fullWidth maxWidth="md">
+                  <DialogContent style={{ paddingTop: '32px' }}>
+                    <Grid container spacing={4}>
+                      {recipes.map((recipe, i) => (
+                        <Grid item xs={12} md={4} key={i}>
+                          <Card key={recipe.id} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                            <h2 style={{ textAlign: 'center', marginBottom: '16px' }}>{recipe.name}</h2>
+                            <p style={{ textAlign: 'center', marginBottom: '24px' }}>{recipe.description}</p>
+                            <CardContent style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+                              <h3 style={{ textAlign: 'center', marginBottom: '8px' }}>Ingredients:</h3>
+                              <div style={{ backgroundColor: '#f5f5f5', border: '1px solid #ddd', borderRadius: '4px', padding: '8px', marginBottom: '24px' }}>
+                                <ul style={{ paddingLeft: '20px' }}>
+                                  {recipe.ingredients.map((ingredient, j) => (
+                                    <li key={ingredient.id || j} style={{ marginBottom: '8px' }}>{ingredient}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                              <h3 style={{ textAlign: 'center', marginBottom: '8px' }}>Instructions:</h3>
+                              <ol style={{ paddingLeft: '20px' }}>
+                                {recipe.instructions.map((instruction, k) => (
+                                  <li key={instruction.id || k} style={{ marginBottom: '8px' }}>{instruction}</li>
+                                ))}
+                              </ol>
+                            </CardContent>
+                          </Card>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </DialogContent>
+                  <DialogActions
                     sx={{
-                      textTransform: 'none',
-                      '&::first-letter': {
-                        textTransform: 'capitalize',
-                      },
+                      justifyContent: 'center',
+                      marginBottom: '12px',
+                      position: 'relative',
                     }}
-                    color="black"
-                    variant="contained"
-                    onClick={handleCloseErrorModal}
                   >
+                    <Button
+                      sx={{
+                        textTransform: 'none',
+                        '&::first-letter': {
+                          textTransform: 'capitalize',
+                        },
+                      }}
+                      color="black"
+                      variant="contained"
+                      onClick={handleCloseModal}
+                    >
+                      Close
+                    </Button>
+                  </DialogActions>
+                </Dialog>
+              )}
+            </main>
+            <Dialog open={errorOpen} onClose={handleCloseErrorModal}>
+              <DialogContent style={{ paddingTop: '32px' }}>
+                <p style={{ textAlign: 'center', marginBottom: '24px' }}>{errorMessage}</p>
+              </DialogContent>
+              <DialogActions
+                sx={{
+                  justifyContent: 'center',
+                  marginBottom: '12px',
+                  position: 'relative',
+                }}>
+                <Button
+                  sx={{
+                    textTransform: 'none',
+                    '&::first-letter': {
+                      textTransform: 'capitalize',
+                    },
+                  }}
+                  color="black"
+                  variant="contained"
+                  onClick={handleRetry}
+                >
+                  Try Again
+                </Button>
+                <Button
+                  sx={{
+                    textTransform: 'none',
+                    '&::first-letter': {
+                      textTransform: 'capitalize',
+                    },
+                  }}
+                  color="black"
+                  variant="contained"
+                  onClick={handleCloseErrorModal}
+                >
                   Close
-                  </Button>
-            </DialogActions>
-          </Dialog>
-        </ThemeProvider>
-      </Box>
-    </Box>
+                </Button>
+              </DialogActions>
+            </Dialog>
+          </ThemeProvider>
+        </Box>
+      </Box></>
   );
 }
+Home.requireAuth = true
 const black = {
   100: '#e0e0e0',
   200: '#b0b0b0',
