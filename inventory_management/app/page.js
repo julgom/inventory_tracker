@@ -498,19 +498,41 @@ export default function Home() {
               }
             }}
           />
-           <Button
-            sx={{
-              textTransform: 'none', // Disable default uppercase transformation
-              '&::first-letter': {
-                textTransform: 'capitalize', // Capitalize the first letter
-              },
-            }}
-            color="black"
-            variant="contained"
-            
-          >
-          Upload Image
-          </Button>
+           {!showInput ? (
+            <Button
+              sx={{
+                textTransform: 'none', // Disable default uppercase transformation
+                '&::first-letter': {
+                  textTransform: 'capitalize', // Capitalize the first letter
+                },
+              }}
+              color="black"
+              variant="contained"
+              onClick={handleUpload}
+            >
+              Upload Image
+            </Button>
+          ) : (
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              style={{ display: 'block' }} // Show the input element
+            />
+          )}
+         
+          {preview && (
+            <div>
+              <Image
+                src={preview}
+                alt="Uploaded image"
+                width={200}
+                height={200}
+                layout="responsive"
+              
+              />
+            </div>
+          )}
           </ThemeProvider>
           <Box display="flex" justifyContent="flex-end" gap={2}>
           <ThemeProvider theme={theme}>
