@@ -2,10 +2,11 @@
 'use client'
 import Image from "next/image";
 import { useState, useEffect } from 'react';
-import { firestore } from '@/firebase';
+import { firestore, storage } from '@/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Box, Typography, Modal, Stack, TextField, Button, IconButton, Paper, InputBase, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,  CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions,  List, ListItem, ListItemText, Card, CardContent, Container, Grid } from '@mui/material';
 import { tableCellClasses } from '@mui/material/TableCell';
-import { collection, doc, getDocs, query, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, query, setDoc, deleteDoc, getDoc, updateDoc } from 'firebase/firestore';
 import * as React from 'react';
 import { Unstable_NumberInput as BaseNumberInput } from '@mui/base/Unstable_NumberInput';
 import { styled, createTheme, ThemeProvider } from '@mui/material/styles';
@@ -91,6 +92,11 @@ export default function Home() {
   const [errorOpen, setErrorOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [uploadedUrl, setUploadedUrl] = useState(null);
+  const [showInput, setShowInput] = useState(false);
+
   const updateInventory = async () => {
     const snapshot = query(collection(firestore, 'inventory'));
     const docs = await getDocs(snapshot);
@@ -109,7 +115,6 @@ export default function Home() {
   // Function to generate recipes
   const generateRecipes = async () => {
     
-      
       try {
         setIsLoading(true);
         setErrorMessage(null);
@@ -173,17 +178,52 @@ export default function Home() {
     setErrorOpen(false);
   };
 
+  const handleFileChange = (event) => {
+    if (event.target.files.length > 0) {
+      const file = event.target.files[0]; // this Object holds a reference to the file on disk
+      const url = URL.createObjectURL(file);
+      setFile(file);
+      setPreview(url);
+      setShowInput(false); // Hide the file input field after selecting a file
+    }
+  }
 
-  const addItem = async (item, addQuantity) => {
+  const uploadImage = async() => {
+    if (!file) {
+      const url = '/public/no image.png';
+      setUploadedUrl(url);
+      return url;
+    }
+    const storageRef = ref(storage, `images/${file.name}`);
+
+    try {
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      setUploadedUrl(url);
+      return url;
+    } catch (error) {
+      console.log("Error uploading the file", error);
+      return null;
+    } 
+
+  }
+
+  const handleUpload = () => {
+    setShowInput(true); // Show file input when button is clicked
+  };
+
+
+  const addItem = async (item, addQuantity, imageUrl) => {
     
+
     const docRef = doc(collection(firestore, 'inventory'), item);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
       const { quantity } = docSnap.data();
-      await setDoc(docRef, { quantity: quantity + addQuantity });
+      await setDoc(docRef, { quantity: quantity + addQuantity, imageUrl});
     } else {
-      await setDoc(docRef, { quantity: addQuantity });
+      await setDoc(docRef, { quantity: addQuantity, imageUrl });
     }
 
     await updateInventory();
@@ -233,7 +273,6 @@ export default function Home() {
     }
   
     await updateInventory();
-    //handleEditClose(); 
   };
   
  
@@ -284,6 +323,7 @@ export default function Home() {
 
       <Modal open={open}>
         <Box
+        
           position="absolute"
           top="50%"
           left="50%"
@@ -326,25 +366,46 @@ export default function Home() {
             }}
             
           />
-          <Button
-            sx={{
-              textTransform: 'none', // Disable default uppercase transformation
-              '&::first-letter': {
-                textTransform: 'capitalize', // Capitalize the first letter
-              },
-            }}
-            color="black"
-            variant="contained"
-            
-          >
-          Upload Image
-          <input
-            type="file"
-            accept="image/*"
-            hidden
-            
-          />
-          </Button>
+          
+          
+          {!showInput ? (
+            <Button
+              sx={{
+                textTransform: 'none', // Disable default uppercase transformation
+                '&::first-letter': {
+                  textTransform: 'capitalize', // Capitalize the first letter
+                },
+              }}
+              color="black"
+              variant="contained"
+              onClick={handleUpload}
+            >
+              Upload Image
+            </Button>
+          ) : (
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              style={{ display: 'block' }} // Show the input element
+            />
+          )}
+         
+          {preview && (
+            <div>
+              <Image
+                src={preview}
+                alt="Uploaded image"
+                width={200}
+                height={200}
+                layout="responsive"
+              
+              />
+            </div>
+          )}
+          
+          
+
           </ThemeProvider>
           <Box display="flex" justifyContent="flex-end" gap={2}>
           <ThemeProvider theme={theme}>
@@ -359,11 +420,12 @@ export default function Home() {
               variant="contained"
               onClick={async () => {
                 
-                addItem(itemName, itemQuantity);
+                addItem(itemName, itemQuantity, await uploadImage());
                 setItemName('');
                 setItemQuantity(1);
-                
-
+                setFile(null);
+                setPreview(null);
+                setUploadedUrl(null);
                 handleClose();
               }}
             >
@@ -381,8 +443,9 @@ export default function Home() {
               onClick={() => {
                 setItemName('');
                 setItemQuantity(1);
-               
-
+                setFile(null);
+                setPreview(null);
+                setUploadedUrl(null);
                 handleClose();
               }}
             >
@@ -390,7 +453,6 @@ export default function Home() {
             </Button>
             </ThemeProvider>
           </Box>
-          
         </Box>
       </Modal>
 
@@ -462,12 +524,11 @@ export default function Home() {
               color="black"
               variant="contained"
               onClick={ () => {
-               
                 editItem();
                 setItemName('');
                 setItemQuantity(1);
-               
-
+                setFile(null);
+                setUploadedUrl(null);
                 handleEditClose();
               }}
             >
@@ -486,8 +547,8 @@ export default function Home() {
               onClick={() => {
                 setItemName('');
                 setItemQuantity(1);
-                
-
+                setFile(null);
+                setUploadedUrl(null);
                 handleEditClose();
                 
               }}
@@ -536,6 +597,7 @@ export default function Home() {
           <Table stickyHeader sx={{ minWidth: 700, tableLayout: 'fixed'}} aria-label="customized table">
             <TableHead>
               <TableRow >
+                <StyledTableCell align="center">Image</StyledTableCell>
                 <StyledTableCell align="center">Item Name</StyledTableCell>
                 <StyledTableCell align="center">Quantity</StyledTableCell>
                 <StyledTableCell align="right"></StyledTableCell>
@@ -543,9 +605,11 @@ export default function Home() {
               </TableRow>
             </TableHead>
             <TableBody >
-              {filteredInventory.map(({ name, quantity }) => (
+              {filteredInventory.map(({ name, quantity, imageUrl }) => (
                 <StyledTableRow key={name} >
-                  
+                  <StyledTableCell align="center">
+                    {imageUrl && <Image src={imageUrl} alt="Uploaded image" width={50} height={50} layout="responsive" />}
+                  </StyledTableCell>
                   <StyledTableCell align="center" component="th" scope="row">
                     {name.charAt(0).toUpperCase() + name.slice(1)}
                   </StyledTableCell>
