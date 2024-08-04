@@ -190,7 +190,7 @@ export default function Home() {
 
   const uploadImage = async() => {
     if (!file) {
-      const url = '/public/no image.png';
+      const url = '/no image.png';
       setUploadedUrl(url);
       return url;
     }
@@ -286,11 +286,11 @@ export default function Home() {
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
-  const handleEditOpen = (name, quantity, ) => {
+  const handleEditOpen = (name, quantity, imageUrl) => {
     setItemName(name);
     setItemQuantity(quantity);
     setEditingItem(name);
-    
+    setPreview(imageUrl);
     setEditOpen(true);
   };
   
@@ -528,8 +528,10 @@ export default function Home() {
                 setItemName('');
                 setItemQuantity(1);
                 setFile(null);
+                setPreview(null);
                 setUploadedUrl(null);
                 handleEditClose();
+                
               }}
             >
               Update
@@ -548,8 +550,10 @@ export default function Home() {
                 setItemName('');
                 setItemQuantity(1);
                 setFile(null);
+                setPreview(null);
                 setUploadedUrl(null);
                 handleEditClose();
+                
                 
               }}
             >
@@ -633,7 +637,7 @@ export default function Home() {
                   </StyledTableCell>
                   <StyledTableCell align="center">
                     
-                    <IconButton onClick={() => handleEditOpen(name, quantity)}>
+                    <IconButton onClick={() => handleEditOpen(name, quantity, imageUrl)}>
                       <EditRoundedIcon color="primary"/>
                     </IconButton>
                     <IconButton onClick={() => deleteItem(name)}>
