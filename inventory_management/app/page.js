@@ -200,17 +200,28 @@ export default function Home() {
       setUploadedUrl(url);
       return url;
     }
-    //const storageRef = ref(storage, `images/${file.name}`);
-    let imageToUpload = preview || capturedImage;
-    if (imageToUpload) {
-      const storageRef = ref(storage, `images/${Date.now()}.jpg`);
-      await uploadString(storageRef, imageToUpload, 'data_url');
-      const downloadURL = await getDownloadURL(storageRef);
-      return downloadURL;
+    
+    if (capturedImage) {
+      const response = await fetch(capturedImage);
+      const blob = await response.blob();
+      const storageRef = ref(storage, `images/${capturedImage.name}`);
+      await uploadBytes(storageRef, blob);
+      const url = await getDownloadURL(storageRef);
+      setUploadedUrl(url);
+      return url;
     }
+    if (preview) {
+      const storageRef = ref(storage, `images/${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      setUploadedUrl(url);
+      return url;
+      
+    }
+   
     return null;
   };
-   
+  
 
   const addItem = async (item, addQuantity, imageUrl) => {
     
