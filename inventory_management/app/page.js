@@ -3,7 +3,7 @@
 
 import Image from "next/image";
 import { useState, useEffect } from 'react';
-import { firestore, storage } from '@/firebase';
+import { firestore, storage, app } from '@/firebase';
 import { ref, uploadBytes, getDownloadURL, uploadString} from 'firebase/storage';
 import { Box, Typography, Modal, Stack, TextField, Button, IconButton, Paper, InputBase, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,  CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions,  List, ListItem, ListItemText, Card, CardContent, Container, Grid } from '@mui/material';
 import { tableCellClasses } from '@mui/material/TableCell';
@@ -22,8 +22,17 @@ import Webcam from 'react-webcam';
 import { signOut, useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 
+/*import React, {useEffect, useState} from "react";
+import {getAuth, signOut, onAuthStateChanged} from "firebase/auth";
+import {useRouter} from "next/navigation";
+import {app} from '@/firebase';
+*/
 
-
+/*import { getAuth } from "firebase/auth";
+import {useRouter} from "next/navigation";
+import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import  Dashboard  from "./dashboard/page.js";
+*/
 
 const theme = createTheme({
   palette: {
@@ -109,6 +118,61 @@ export default function Home() {
 
   const session = useSession();
 
+
+/*
+  const [user, setUser] = useState(null);
+  const router = useRouter();
+
+  useEffect(() =>  {
+    const auth = getAuth(app);
+    const unsubscribe = auth.onAuthStateChanged((user) =>  {
+      if (user) {
+        setUser(user);
+      }else {
+        setUser(null);
+      }
+    });
+
+    return() => unsubscribe();
+  }, []);
+
+  const signInWithGoogle = async () => {
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      router.push("/dashboard");
+    } catch (error) {
+      console.error("Error signing in with Google:", error.message);
+    }
+  };*/
+/*
+  const auth = getAuth();
+  const router = useRouter();
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+          if (user) {
+              setUser(user);
+          }else {
+              router.push("/Login");
+          }
+      });
+
+      return () => unsubscribe();
+  }, [auth, router]);
+
+  const handleLogout = async () => {
+      try {
+          await signOut(auth);
+          router.push("/Login");
+
+      }catch(error) {
+          console.error("Error signing out:", error.message);
+      }
+  };
+ */
   const updateInventory = async () => {
     const snapshot = query(collection(firestore, 'inventory'));
     const docs = await getDocs(snapshot);
@@ -305,7 +369,9 @@ export default function Home() {
  
 
   useEffect(() => {
+    
     updateInventory();
+
 
   }, []);
 
@@ -353,7 +419,8 @@ export default function Home() {
   );
 
   return (
-    <><>
+    <>
+    <>
     <header style={{
       display: 'flex',
       justifyContent: 'space-between',
@@ -387,7 +454,8 @@ export default function Home() {
     </header>
     </>
    
-    
+   
+  
     <Box
       width="100vw"
       height="100vh"
@@ -568,6 +636,7 @@ export default function Home() {
                     setItemQuantity(1);
                     setShowInput(false);
                     setShowWebcam(false);
+                    setCapturedImage(null);
                     setFile(null);
                     setPreview(null);
                     setUploadedUrl(null);
@@ -590,6 +659,7 @@ export default function Home() {
                     setItemQuantity(1);
                     setShowInput(false);
                     setShowWebcam(false);
+                    setCapturedImage(null);
                     setFile(null);
                     setPreview(null);
                     setUploadedUrl(null);
@@ -757,6 +827,7 @@ export default function Home() {
                     setItemQuantity(1);
                     setShowInput(false);
                     setShowWebcam(false);
+                    setCapturedImage(null);
                     setFile(null);
                     setPreview(null);
                     setUploadedUrl(null);
@@ -781,6 +852,7 @@ export default function Home() {
                     setItemQuantity(1);
                     setShowInput(false);
                     setShowWebcam(false);
+                    setCapturedImage(null);
                     setFile(null);
                     setPreview(null);
                     setUploadedUrl(null);
@@ -1009,7 +1081,11 @@ export default function Home() {
       </Box></>
   );
 }
-Home.requireAuth = true
+
+
+
+
+//Home.requireAuth = true
 const black = {
   100: '#e0e0e0',
   200: '#b0b0b0',
@@ -1118,3 +1194,4 @@ const StyledButton = styled('button')(
   }
 `,
 );
+

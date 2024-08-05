@@ -32,6 +32,7 @@ export default function Login() {
   );
 }*/
 'use client';
+
 import { signIn } from 'next-auth/react';
 import { useEffect } from 'react';
 
@@ -65,7 +66,7 @@ export default function Login() {
         onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#333'}
         onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'black'}
       >
-        Login
+        Sign In With Google
       </button>
 
       <style jsx>{`
@@ -87,3 +88,70 @@ export default function Login() {
     </div>
   );
 }
+/*
+'use client';
+import { useState, useEffect } from 'react';
+import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
+import { app } from '@/firebase';
+
+import  Home  from "./page";
+
+export default function Login() {
+  const [user, setUser] = useState(null);
+  const router = useRouter();
+
+  useEffect(() =>  {
+    const auth = getAuth(app);
+    const unsubscribe = auth.onAuthStateChanged((user) =>  {
+      if (user) {
+        setUser(user);
+      }else {
+        setUser(null);
+      }
+    });
+
+    return() => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const auth = getAuth(app);
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        router.push('/page');  // Update the route if needed
+        setUser(user);
+      }else {
+        setUser(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
+
+
+  const signInWithGoogle = async () => {
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      router.push("/page");
+    } catch (error) {
+      console.error("Error signing in with Google:", error.message);
+    }
+  };
+
+  return(
+<div className="flex flex-col items-center justify-center h-screen bg-white">
+      {user ? (
+        <Home />
+      ) : (
+        <button 
+          onClick={signInWithGoogle}
+          className="bg-black hover:bg-gray-800 text-white font-bold py-2 px-4 rounded"
+        >
+          Sign In With Google
+        </button> 
+      )}
+    </div>
+  );
+}*/
